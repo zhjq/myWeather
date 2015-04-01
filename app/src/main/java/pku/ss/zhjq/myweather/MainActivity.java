@@ -1,6 +1,9 @@
 package pku.ss.zhjq.myweather;
 
+import android.app.Application;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Environment;
 import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -34,7 +37,7 @@ import pku.ss.zhjq.util.NetUtil;
 public class MainActivity extends ActionBarActivity implements View.OnClickListener{
 
     private TextView cityTv, timeTv, humidityTv, weekTv, pmDataTv, pmQualityTv, temperatureTv, climateTv, windTv, currentTemperatureTv, fengxiangTv;
-    private ImageView mUpdateBtn, weatherImg, pmImg;
+    private ImageView mUpdateBtn, weatherImg, pmImg, cityManager;
 
     private static final int UPDATE_TODAY_WEATHER = 1;
 
@@ -52,10 +55,23 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
         setContentView(R.layout.weather_info);
         mUpdateBtn = (ImageView)findViewById(R.id.title_update_btn);
         mUpdateBtn.setOnClickListener(this);
+
+        cityManager = (ImageView)findViewById(R.id.title_city_manager);
+        cityManager.setOnClickListener(this);
         initView();
+        SharedPreferences sharedPreferences = getSharedPreferences("config",MODE_PRIVATE);
+        String cityCode = sharedPreferences.getString("main_city_code","101010100");
+
+        if(NetUtil.getNetworkState(this) != NetUtil.NETWORN_NONE){
+            queryWeatherCode(cityCode);
+        }else{
+            Toast.makeText(MainActivity.this,"网络挂了",Toast.LENGTH_LONG).show();
+        }
     }
 
 
@@ -83,17 +99,22 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
     @Override
     public void onClick(View view){
-        if(view.getId() == R.id.title_update_btn){
-            SharedPreferences sharedPreferences = getSharedPreferences("config",MODE_PRIVATE);
-            String cityCode = sharedPreferences.getString("main_city_code","101010100");
-            Log.d("myWeather",cityCode);
-            if(NetUtil.getNetworkState(this) != NetUtil.NETWORN_NONE){
-                Log.d("myWeather","网络OK");
-                queryWeatherCode(cityCode);
-            }else{
-                Log.d("myWeather","网络挂了");
-                Toast.makeText(MainActivity.this,"网络挂了",Toast.LENGTH_LONG).show();
-            }
+        switch (view.getId()){
+            case R.id.title_update_btn:
+                SharedPreferences sharedPreferences = getSharedPreferences("config",MODE_PRIVATE);
+                String cityCode = sharedPreferences.getString("main_city_code","101010100");
+                if(NetUtil.getNetworkState(this) != NetUtil.NETWORN_NONE){
+                    queryWeatherCode(cityCode);
+                }else{
+                    Toast.makeText(MainActivity.this,"网络挂了",Toast.LENGTH_LONG).show();
+                }
+                break;
+            case R.id.title_city_manager:
+                Intent intent = new Intent(MainActivity.this,CityManagerActivity.class);
+                startActivity(intent);
+                break;
+            default:
+                break;
         }
     }
 
@@ -127,7 +148,6 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
                         Log.d("myWeather", responseStr);
                         TodayWeather todayWeather = parseXML(responseStr);
                         if(todayWeather != null){
-//                            Log.d("myapp2",todayWeather.toString());
                             //发送消息，由主线程更新UI
                             Message msg = new Message();
                             msg.what = UPDATE_TODAY_WEATHER;
@@ -171,56 +191,44 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
                         if(todayWeather != null){
                             if(xmlPullParser.getName().equals("city")){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","city:"+xmlPullParser.getText());
                                 todayWeather.setCity(xmlPullParser.getText());
                             }else if(xmlPullParser.getName().equals("updatetime")){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","updatetime:"+xmlPullParser.getText());
                                 todayWeather.setUpdatetime(xmlPullParser.getText());
                             }else if(xmlPullParser.getName().equals("shidu")){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","shidu:"+xmlPullParser.getText());
                                 todayWeather.setShidu(xmlPullParser.getText());
                             }else if(xmlPullParser.getName().equals("wendu")){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","wendu:"+xmlPullParser.getText());
                                 todayWeather.setWendu(xmlPullParser.getText());
                             }else if(xmlPullParser.getName().equals("pm25")){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","pm2.5:"+xmlPullParser.getText());
                                 todayWeather.setPm25(xmlPullParser.getText());
                             }else if(xmlPullParser.getName().equals("quality")){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","quality:"+xmlPullParser.getText());
                                 todayWeather.setQuality(xmlPullParser.getText());
                             }else if(xmlPullParser.getName().equals("fengxiang") && fengxiangCount==0){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","fengxiang:"+xmlPullParser.getText());
                                 todayWeather.setFengxiang(xmlPullParser.getText());
                                 fengxiangCount++;
                             }else if(xmlPullParser.getName().equals("fengli") && fengliCount==0){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","fengli:"+xmlPullParser.getText());
                                 todayWeather.setFengli(xmlPullParser.getText());
                                 fengliCount++;
                             }else if(xmlPullParser.getName().equals("date") && dateCount==0){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","date:"+xmlPullParser.getText());
                                 todayWeather.setDate(xmlPullParser.getText());
                                 dateCount++;
                             }else if(xmlPullParser.getName().equals("high") && highCount==0){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","high:"+xmlPullParser.getText().substring(2));
                                 todayWeather.setHigh(xmlPullParser.getText().substring(2).trim());
                                 highCount++;
                             }else if(xmlPullParser.getName().equals("low") && lowCount==0){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","low:"+xmlPullParser.getText().substring(2));
                                 todayWeather.setLow(xmlPullParser.getText().substring(2).trim());
                                 lowCount++;
                             }else if(xmlPullParser.getName().equals("type") && typeCount==0){
                                 eventType = xmlPullParser.next();
-                                Log.d("myapp2","type:"+xmlPullParser.getText());
                                 todayWeather.setType(xmlPullParser.getText());
                                 typeCount++;
                             }
@@ -243,7 +251,6 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     }
 
     private void initView(){
-        Log.d("test","initView");
         cityTv = (TextView)findViewById(R.id.city);
         timeTv = (TextView)findViewById(R.id.time);
         humidityTv = (TextView)findViewById(R.id.humidity);
@@ -273,7 +280,6 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
     }
 
     private void updateTodayWeather(TodayWeather todayWeather){
-        Log.d("myapp3",todayWeather.toString());
         cityTv.setText(todayWeather.getCity());
         timeTv.setText(todayWeather.getUpdatetime()+"发布");
         humidityTv.setText("湿度" + todayWeather.getShidu());
